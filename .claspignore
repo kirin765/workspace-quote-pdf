@@ -1,0 +1,3 @@
+# clasp deploys from dist/ (see .clasp.json "rootDir").
+# scripts/build.mjs writes only deployable files there, so nothing is ignored here.
+# This file exists to document that no source, tests or toolchain files are pushed.

@@ -1,0 +1,21 @@
+/*
+ * Apps Script global shim. Appended verbatim to the esbuild `App` bundle by
+ * scripts/build.mjs. Apps Script resolves trigger/menu/`google.script.run`
+ * functions by flat global name, so each one is declared here and delegated to
+ * the bundled modules.
+ */
+
+function onOpen(e) { return App.main.onOpen(e); }
+function onInstall(e) { return App.main.onInstall(e); }
+function onHomepage(e) { return App.main.onHomepage(e); }
+function showSidebar() { return App.main.showSidebar(); }
+function showAbout() { return App.main.showAbout(); }
+function include(filename) { return App.main.include(filename); }
+
+function apiGetInitialState() { return App.api.getInitialState(); }
+function apiScanSelection() { return App.api.scanSelection(); }
+function apiSaveSettings(payload) { return App.api.saveSettingsApi(payload); }
+function apiCreateOutputFolder() { return App.api.createOutputFolderApi(); }
+function apiSaveLogo(payload) { return App.api.saveLogo(payload); }
+function apiStartGeneration(payload) { return App.api.startGeneration(payload); }
+function apiContinueGeneration() { return App.api.continueGeneration(); }

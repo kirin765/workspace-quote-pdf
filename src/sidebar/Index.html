@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <?!= include('Styles'); ?>
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <h1>Quote PDFs</h1>
+        <p class="muted" id="selection-label">No selection detected.</p>
+      </div>
+      <button id="refresh" class="ghost" type="button">Refresh</button>
+    </header>
+
+    <div id="banner" class="banner hidden" role="status"></div>
+
+    <section class="card">
+      <h2>1. Map columns</h2>
+      <p class="muted">
+        Select the header row and quote lines in the sheet, then map the columns below.
+      </p>
+      <div id="mapping-fields" class="grid"></div>
+    </section>
+
+    <section class="card">
+      <h2>2. Branding</h2>
+      <label class="field">
+        <span>Business display name</span>
+        <input id="display-name" type="text" placeholder="Alpha Trading Co." />
+      </label>
+      <label class="field">
+        <span>Address lines (one per line)</span>
+        <textarea id="address-lines" rows="2" placeholder="1 Example Street&#10;Springfield"></textarea>
+      </label>
+      <label class="field">
+        <span>Contact lines (one per line)</span>
+        <textarea id="contact-lines" rows="2" placeholder="sales@example.com"></textarea>
+      </label>
+      <div class="row">
+        <label class="field">
+          <span>Validity (days)</span>
+          <input id="validity-days" type="number" min="0" max="3650" value="30" />
+        </label>
+        <label class="field">
+          <span>Page size</span>
+          <select id="page-size">
+            <option value="A4">A4</option>
+            <option value="LETTER">Letter</option>
+          </select>
+        </label>
+      </div>
+      <label class="field">
+        <span>Number format</span>
+        <select id="number-format">
+          <option value="dot-decimal">1,234.56 (dot decimal)</option>
+          <option value="comma-decimal">1.234,56 (comma decimal)</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Terms</span>
+        <textarea id="terms" rows="3" placeholder="50% deposit on order."></textarea>
+      </label>
+      <div class="row">
+        <label class="field">
+          <span>Logo (optional)</span>
+          <input id="logo-file" type="file" accept="image/png,image/jpeg" />
+        </label>
+        <span id="logo-status" class="muted small"></span>
+      </div>
+      <div class="actions">
+        <button id="save-settings" type="button">Save settings</button>
+        <button id="preview" class="primary" type="button">Preview quotes</button>
+      </div>
+      <ul id="settings-issues" class="issues hidden"></ul>
+    </section>
+
+    <section class="card">
+      <h2>3. Output folder</h2>
+      <p class="muted small">
+        Where generated PDFs are saved. Only folders this add-on can access are listed; sharing
+        settings are never changed.
+      </p>
+      <div class="row">
+        <label class="field">
+          <span>Folder</span>
+          <select id="output-folder">
+            <option value="">(create "Quote PDFs" on first run)</option>
+          </select>
+        </label>
+        <button id="new-folder" type="button">New folder</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>4. Review &amp; generate</h2>
+      <p class="muted">
+        Totals are the sum of validated line amounts. No taxes, exchange rates or discounts
+        are applied or inferred.
+      </p>
+      <div id="summary-counts" class="counts muted"></div>
+      <ul id="quote-list" class="quote-list"></ul>
+      <div id="preview-panel" class="preview hidden"></div>
+      <div class="actions">
+        <button id="generate" class="primary" disabled type="button">Generate PDFs</button>
+        <span class="muted small">Results are written to a dedicated results tab, never to this source sheet.</span>
+      </div>
+      <div id="progress" class="progress hidden">
+        <div class="bar"><span id="progress-bar"></span></div>
+        <p id="progress-text" class="muted small"></p>
+      </div>
+      <ul id="result-list" class="quote-list"></ul>
+    </section>
+
+    <footer class="app-footer muted small">
+      <span id="allowance"></span>
+      <p>
+        Quotation documents only. Not proof of payment or a tax invoice. Source rows are never
+        modified; PDFs are written to the folder the add-on selects or creates.
+      </p>
+    </footer>
+
+    <?!= include('JavaScript'); ?>
+  </body>
+</html>

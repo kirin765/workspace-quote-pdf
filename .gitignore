@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+demo-preview.html
+
+# clasp / Google project identifiers are local-only.
+.clasp.json
+.clasp.json.bak
+.env
+.env.*
+!.env.example
+
+# OS / editor noise
+.DS_Store
+*.log

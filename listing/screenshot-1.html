@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Workspace Quote PDF — listing screenshot</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        width: 1280px; height: 800px; overflow: hidden;
+        font-family: "Google Sans", Roboto, Arial, sans-serif;
+        display: flex; flex-direction: column; background: #fff; color: #1f2328;
+      }
+      .topbar {
+        display: flex; align-items: center; gap: 18px;
+        padding: 6px 14px 3px; font-size: 12px; color: #3c4043;
+      }
+      .topbar .name { font-size: 15px; color: #1f2328; margin-right: 6px; }
+      .topbar .spacer { flex: 1; }
+      .toolbar { display: flex; align-items: center; gap: 10px; padding: 1px 14px 4px; font-size: 12px; color: #3c4043; }
+      .toolbar .pill { border: 1px solid #dadce0; border-radius: 6px; padding: 3px 8px; }
+      .fx { border-top: 1px solid #e2e5e9; border-bottom: 1px solid #e2e5e9; }
+      .split { flex: 1; display: flex; min-height: 0; }
+      .sheet { flex: 1; min-width: 0; overflow: hidden; }
+      table.grid { border-collapse: collapse; font-size: 13px; width: 100%; table-layout: fixed; }
+      table.grid th, table.grid td { border-right: 1px solid #e2e5e9; border-bottom: 1px solid #e2e5e9; height: 24px; padding: 0 6px; text-align: left; font-weight: normal; overflow: hidden; white-space: nowrap; }
+      table.grid thead th { background: #f8f9fa; color: #5f6368; text-align: center; font-size: 12px; }
+      table.grid td.rownum, table.grid th.rowhead { background: #f8f9fa; color: #5f6368; text-align: center; width: 40px; font-size: 12px; }
+      table.grid thead th.hdr { background: #e8f0fe; }
+      table.grid td.sel, table.grid th.sel, table.grid td.rownum.sel { background: #e8f0fe; }
+      table.grid td.num { text-align: right; }
+      .sidebar {
+        width: 340px; flex: none; border-left: 1px solid #dadce0;
+        overflow: hidden; background: #fff;
+      }
+    </style>
+    <style>
+      :root {
+        --bg: #ffffff; --fg: #1f2328; --muted: #6b7280; --border: #e2e5e9;
+        --accent: #1a73e8; --accent-fg: #ffffff; --error: #c5221f; --warn: #b26a00; --ok: #137333;
+      }
+      .sb * { box-sizing: border-box; }
+      .sb { margin: 0; padding: 10px; font-family: "Google Sans", Roboto, Arial, sans-serif; font-size: 13px; color: var(--fg); background: var(--bg); }
+      .sb .app-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+      .sb .app-header h1 { margin: 0; font-size: 16px; }
+      .sb .muted { color: var(--muted); }
+      .sb .small { font-size: 11px; }
+      .sb .hidden { display: none !important; }
+      .sb .card { border: 1px solid var(--border); border-radius: 8px; padding: 9px; margin-top: 9px; }
+      .sb .card h2 { margin: 0 0 6px; font-size: 13px; }
+      .sb .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .sb .field { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+      .sb .field span { color: var(--muted); font-size: 11px; }
+      .sb input, .sb select, .sb textarea { width: 100%; padding: 5px 6px; border: 1px solid var(--border); border-radius: 5px; font: inherit; background: #fff; color: inherit; }
+      .sb .row { display: flex; gap: 8px; align-items: flex-end; }
+      .sb .row .field { flex: 1; }
+      .sb .actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+      .sb button { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: #f7f8f9; color: var(--fg); font: inherit; cursor: pointer; }
+      .sb button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+      .sb button.ghost { background: transparent; }
+      .sb .badge { font-size: 10px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--border); }
+      .sb .badge.ready { color: var(--ok); border-color: var(--ok); }
+      .sb .badge.blocked { color: var(--error); border-color: var(--error); }
+      .sb .quote-list { list-style: none; margin: 8px 0 0; padding: 0; }
+      .sb .quote-list li { border: 1px solid var(--border); border-radius: 6px; padding: 5px 7px; margin-bottom: 5px; }
+      .sb .quote-list .quote-head { display: flex; justify-content: space-between; gap: 8px; }
+      .sb .quote-list .quote-id { font-weight: 600; }
+      .sb .preview { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 8px; }
+      .sb .preview table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6px; }
+      .sb .preview th, .sb .preview td { border: 1px solid var(--border); padding: 3px 4px; text-align: left; }
+      .sb .preview th.right, .sb .preview td.right { text-align: right; }
+      .sb .preview .total { font-weight: 600; }
+      .sb .counts { margin-top: 4px; }
+      .sb .app-footer { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <span class="name">Q3 Quotations</span>
+      <span>File</span><span>Edit</span><span>View</span><span>Insert</span><span>Format</span><span>Data</span><span>Tools</span><span>Extensions</span><span>Help</span>
+      <span class="spacer"></span>
+      <span>Saved to Drive</span>
+    </div>
+    <div class="toolbar">
+      <span>100%</span><span>$</span><span>%</span><span>.0</span><span>123</span>
+    </div>
+    <div class="fx toolbar"><span>=</span><span>fx</span></div>
+
+    <div class="split">
+      <div class="sheet">
+        <table class="grid">
+          <thead>
+            <tr>
+              <th class="rowhead sel"></th>
+              <th class="hdr sel">A</th><th class="hdr sel">B</th><th class="hdr sel">C</th><th class="hdr sel">D</th><th class="hdr sel">E</th><th class="hdr sel">F</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="rownum sel">1</td><td class="sel">Quote ID</td><td class="sel">Customer</td><td class="sel">Item</td><td class="sel num">Quantity</td><td class="sel num">Unit price</td><td class="sel">Currency</td></tr>
+            <tr><td class="rownum sel">2</td><td class="sel">Q-001</td><td class="sel">Alpha</td><td class="sel">Desk</td><td class="sel num">10</td><td class="sel num">100.00</td><td class="sel">USD</td></tr>
+            <tr><td class="rownum sel">3</td><td class="sel">Q-001</td><td class="sel">Alpha</td><td class="sel">Chair</td><td class="sel num">20</td><td class="sel num">40.00</td><td class="sel">USD</td></tr>
+            <tr><td class="rownum sel">4</td><td class="sel">Q-002</td><td class="sel">Beta</td><td class="sel">Cabinet</td><td class="sel num">5</td><td class="sel num">150.00</td><td class="sel">USD</td></tr>
+            <tr><td class="rownum sel">5</td><td class="sel">Q-003</td><td class="sel">Gamma</td><td class="sel">Lamp</td><td class="sel num">12</td><td class="sel num">25.00</td><td class="sel">USD</td></tr>
+            <tr><td class="rownum sel">6</td><td class="sel">Q-003</td><td class="sel">Gamma</td><td class="sel">Cable</td><td class="sel num">50</td><td class="sel num">3.50</td><td class="sel">USD</td></tr>
+            <tr><td class="rownum">7</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+            <tr><td class="rownum">8</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+            <tr><td class="rownum">9</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sidebar">
+        <div class="sb">
+          <header class="app-header">
+            <div>
+              <h1>Quote PDFs</h1>
+              <p class="muted" id="selection-label">Q3 Quotations · Quotes · A1:F6</p>
+            </div>
+            <button class="ghost" type="button">Refresh</button>
+          </header>
+
+          <section class="card">
+            <h2>1. Map columns</h2>
+            <p class="muted">Map the columns below from the selected header row.</p>
+            <div class="grid">
+              <label class="field"><span>Quote ID *</span><select><option>Column 1: Quote ID</option></select></label>
+              <label class="field"><span>Customer *</span><select><option>Column 2: Customer</option></select></label>
+              <label class="field"><span>Item *</span><select><option>Column 3: Item</option></select></label>
+              <label class="field"><span>Quantity *</span><select><option>Column 4: Quantity</option></select></label>
+              <label class="field"><span>Unit price *</span><select><option>Column 5: Unit price</option></select></label>
+              <label class="field"><span>Currency *</span><select><option>Column 6: Currency</option></select></label>
+            </div>
+          </section>
+
+          <section class="card">
+            <h2>4. Review &amp; generate</h2>
+            <p class="muted">Totals are the sum of validated line amounts — no taxes or discounts inferred.</p>
+            <div class="counts muted">3 quote(s) · 3 ready · 0 blocked · 0 warning(s)</div>
+            <ul class="quote-list">
+              <li><div class="quote-head"><span class="quote-id">Q-001 · Alpha</span><span class="badge ready">ready</span></div><div class="muted small">2 item(s) · USD 1,800.00</div></li>
+              <li><div class="quote-head"><span class="quote-id">Q-002 · Beta</span><span class="badge ready">ready</span></div><div class="muted small">1 item(s) · USD 750.00</div></li>
+              <li><div class="quote-head"><span class="quote-id">Q-003 · Gamma</span><span class="badge ready">ready</span></div><div class="muted small">2 item(s) · USD 475.00</div></li>
+            </ul>
+            <div class="preview">
+              <div class="muted small">Preview · Q-001 · Alpha · A4</div>
+              <div class="small">Issue date: 2026-09-26 · Valid until: 2026-10-26 · Currency: USD</div>
+              <table>
+                <thead><tr><th>#</th><th>Item</th><th class="right">Qty</th><th class="right">Unit price</th><th class="right">Amount</th></tr></thead>
+                <tbody>
+                  <tr><td>1</td><td>Desk</td><td class="right">10</td><td class="right">100.00</td><td class="right">1,000.00</td></tr>
+                  <tr><td>2</td><td>Chair</td><td class="right">20</td><td class="right">40.00</td><td class="right">800.00</td></tr>
+                  <tr><td colspan="4" class="total right">Total</td><td class="total right">USD 1,800.00</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="actions">
+              <button class="primary" type="button">Generate PDFs</button>
+              <span class="muted small">Results are written to a dedicated results tab, never to this source sheet.</span>
+            </div>
+          </section>
+
+          <footer class="app-footer muted small">
+            <span>Free allowance: 0 / 5 quotation PDFs used. Failed or reused generations do not count.</span>
+            <p>Quotation documents only. Not proof of payment or a tax invoice. Source rows are never modified.</p>
+          </footer>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

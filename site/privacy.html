@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Workspace Quote PDF — Privacy Policy</title>
+    <style>
+      body { font-family: system-ui, Arial, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; line-height: 1.6; color: #1f2328; }
+      h1 { font-size: 1.6rem; } h2 { font-size: 1.15rem; margin-top: 1.6em; }
+      code { background: #f2f3f5; padding: 1px 4px; border-radius: 4px; }
+      footer { margin-top: 3em; color: #6b7280; font-size: .85rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Privacy Policy — Workspace Quote PDF</h1>
+    <p><em>Last updated: 2026-09-26.</em></p>
+    <p>
+      Workspace Quote PDF ("the add-on") is operated by Onnuri Stationery ("we"). This policy
+      explains what the add-on accesses and how it is handled.
+    </p>
+
+    <h2>What the add-on accesses</h2>
+    <ul>
+      <li><strong>Current spreadsheet only</strong> (<code>spreadsheets.currentonly</code>): reads the
+        range you select and writes a results tab in the same spreadsheet. It cannot access other
+        spreadsheets.</li>
+      <li><strong>Google Docs</strong> (<code>documents</code>): creates a temporary document to lay
+        out each quotation and export it to PDF.</li>
+      <li><strong>Files created by the add-on</strong> (<code>drive.file</code>): creates the output
+        folder and PDFs and reads a logo the add-on itself stored. It does not access your other
+        Drive files.</li>
+      <li><strong>Container UI</strong> (<code>script.container.ui</code>): shows the sidebar and menu.</li>
+      <li><strong>Outbound requests</strong> (<code>script.external_request</code>): calls Google's own
+        Drive export endpoint (<code>www.googleapis.com</code>) to convert the temporary document to
+        PDF. No other hosts are contacted.</li>
+    </ul>
+
+    <h2>How data is stored</h2>
+    <ul>
+      <li>Your spreadsheet contents and customer data stay within your Google account. We do not
+        transmit them to our servers.</li>
+      <li>Saved settings (column mapping, branding) are stored in your own Apps Script user
+        properties; a content-free usage counter is stored in the spreadsheet's document properties.</li>
+      <li>Temporary Google Docs are moved to trash after the PDF is exported.</li>
+      <li>Generated PDFs remain in your Drive until you delete them.</li>
+    </ul>
+
+    <h2>Telemetry</h2>
+    <p>
+      Usage counters contain event counts and bounded reason codes only. They never include customer
+      names, item names, quote IDs, amounts or file IDs.
+    </p>
+
+    <h2>Payments</h2>
+    <p>No payment provider is integrated. The add-on does not collect payment data.</p>
+
+    <h2>Deletion</h2>
+    <p>
+      Uninstalling the add-on removes its stored settings and usage counter. Output PDFs and the
+      results tab remain in your Google account until you delete them.
+    </p>
+
+    <h2>Contact</h2>
+    <p>Questions: <a href="mailto:happylife2080100@gmail.com">happylife2080100@gmail.com</a>.</p>
+
+    <footer>
+      <p>Not affiliated with or endorsed by Google. Google Sheets and Google Drive are trademarks of Google LLC.</p>
+    </footer>
+  </body>
+</html>

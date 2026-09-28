@@ -1,0 +1,551 @@
+<script>
+  (function () {
+    "use strict";
+
+    var FREE_ALLOWANCE = 5;
+    var COLUMN_KEYS = [
+      ["quoteId", "Quote ID", true],
+      ["customer", "Customer", true],
+      ["item", "Item", true],
+      ["quantity", "Quantity", true],
+      ["unitPrice", "Unit price", true],
+      ["currency", "Currency", true],
+      ["itemCode", "Item code", false],
+      ["description", "Description", false],
+    ];
+
+    var state = {
+      settings: null,
+      entitlement: null,
+      lastHeader: [],
+      outputFolders: [],
+      preview: null,
+      generating: false,
+      results: [],
+    };
+
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    function run(fnName) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      return new Promise(function (resolve, reject) {
+        var runner = google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject);
+        runner[fnName].apply(runner, args);
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value === null || value === undefined ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function errorText(res) {
+      if (!res || !res.error) return "Unknown error";
+      return res.error.code + ": " + res.error.message;
+    }
+
+    function banner(message, kind) {
+      var el = $("banner");
+      el.textContent = message;
+      el.className = "banner " + (kind || "ok");
+    }
+
+    function hideBanner() {
+      $("banner").className = "banner hidden";
+    }
+
+    function listLines(value) {
+      return value
+        .split("\n")
+        .map(function (line) {
+          return line.trim();
+        })
+        .filter(function (line) {
+          return line !== "";
+        });
+    }
+
+    function applyInitial(data) {
+      state.settings = data.settings;
+      state.entitlement = data.entitlement;
+      state.lastHeader = [];
+      $("selection-label").textContent =
+        data.spreadsheetName + " · " + data.activeSheetName + (data.selectionA1 ? " · " + data.selectionA1 : " · no range selected");
+      $("display-name").value = data.settings.business.displayName || "";
+      $("address-lines").value = (data.settings.business.addressLines || []).join("\n");
+      $("contact-lines").value = (data.settings.business.contactLines || []).join("\n");
+      $("validity-days").value = data.settings.business.defaultValidityDays;
+      $("page-size").value = data.settings.business.pageSize;
+      $("number-format").value = data.settings.business.numberFormat;
+      $("terms").value = data.settings.business.terms || "";
+      renderAllowance();
+      renderOutputFolders(data.outputFolders || [], data.settings.outputFolderId);
+    }
+
+    function renderOutputFolders(folders, selectedId) {
+      var select = $("output-folder");
+      select.innerHTML = "";
+      var none = document.createElement("option");
+      none.value = "";
+      none.textContent = '(create "Quote PDFs" on first run)';
+      select.appendChild(none);
+      var seen = {};
+      (folders || []).forEach(function (folder) {
+        if (!folder || !folder.id || seen[folder.id]) return;
+        seen[folder.id] = true;
+        var option = document.createElement("option");
+        option.value = folder.id;
+        option.textContent = folder.name;
+        select.appendChild(option);
+      });
+      if (selectedId && !seen[selectedId]) {
+        var current = document.createElement("option");
+        current.value = selectedId;
+        current.textContent = "(current folder)";
+        select.appendChild(current);
+      }
+      select.value = selectedId || "";
+    }
+
+    function renderAllowance() {
+      var used = state.entitlement ? state.entitlement.freeUsed : 0;
+      var plan = state.entitlement ? state.entitlement.plan : "free";
+      $("allowance").textContent =
+        plan === "paid"
+          ? "Subscription active."
+          : "Free allowance: " + used + " / " + FREE_ALLOWANCE + " quotation PDFs used. Failed or reused generations do not count.";
+    }
+
+    function renderMapping() {
+      var container = $("mapping-fields");
+      var existing = readMappingFromForm();
+      if (existing) state.settings.mapping = existing;
+      var header = state.lastHeader || [];
+      container.innerHTML = "";
+      COLUMN_KEYS.forEach(function (entry) {
+        var key = entry[0];
+        var label = entry[1];
+        var required = entry[2];
+        var field = document.createElement("label");
+        field.className = "field";
+        var span = document.createElement("span");
+        span.textContent = label + (required ? " *" : "");
+        var select = document.createElement("select");
+        select.id = "map-" + key;
+        var none = document.createElement("option");
+        none.value = "";
+        none.textContent = required ? "Select a column" : "(none)";
+        select.appendChild(none);
+        header.forEach(function (heading, index) {
+          var option = document.createElement("option");
+          option.value = String(index);
+          option.textContent = "Column " + (index + 1) + (heading ? ": " + heading : "");
+          select.appendChild(option);
+        });
+        var current = state.settings.mapping[key];
+        select.value = current === null || current === undefined ? "" : String(current);
+        field.appendChild(span);
+        field.appendChild(select);
+        container.appendChild(field);
+      });
+    }
+
+    function readMappingFromForm() {
+      var first = $("map-quoteId");
+      if (!first) return null;
+      var mapping = {};
+      COLUMN_KEYS.forEach(function (entry) {
+        var select = $("map-" + entry[0]);
+        mapping[entry[0]] = select && select.value !== "" ? Number(select.value) : null;
+      });
+      return mapping;
+    }
+
+    function collectSettings() {
+      var mapping = readMappingFromForm() || state.settings.mapping;
+      return {
+        version: state.settings.version,
+        templateVersion: state.settings.templateVersion,
+        mapping: mapping,
+        business: {
+          displayName: $("display-name").value.trim(),
+          addressLines: listLines($("address-lines").value),
+          contactLines: listLines($("contact-lines").value),
+          logoUrl: state.settings.business.logoUrl,
+          defaultValidityDays: Number($("validity-days").value || 0),
+          terms: $("terms").value,
+          pageSize: $("page-size").value,
+          numberFormat: $("number-format").value,
+        },
+        source: state.settings.source,
+        outputFolderId: $("output-folder").value || null,
+      };
+    }
+
+    function renderIssues(issues) {
+      var list = $("settings-issues");
+      list.innerHTML = "";
+      if (!issues || issues.length === 0) {
+        list.className = "issues hidden";
+        return;
+      }
+      issues.forEach(function (entry) {
+        var li = document.createElement("li");
+        li.className = entry.severity;
+        li.textContent = entry.message;
+        list.appendChild(li);
+      });
+      list.className = "issues";
+    }
+
+    async function saveSettings(showOk) {
+      var payload = collectSettings();
+      var res = await run("apiSaveSettings", payload);
+      if (!res.ok) {
+        banner(errorText(res), "error");
+        return false;
+      }
+      state.settings = res.data.settings;
+      renderIssues(res.data.issues);
+      var hasError = (res.data.issues || []).some(function (entry) {
+        return entry.severity === "error";
+      });
+      if (showOk && !hasError) banner("Settings saved.", "ok");
+      return !hasError;
+    }
+
+    async function scan() {
+      try {
+        var res = await run("apiScanSelection");
+        if (!res.ok) {
+          banner(errorText(res), "error");
+          return;
+        }
+        if (res.data.selection) state.lastHeader = res.data.selection.header || [];
+        renderMapping();
+        renderIssues(res.data.settingsIssues);
+        if (res.data.preview) {
+          state.preview = res.data.preview;
+          renderPreview();
+        } else {
+          state.preview = null;
+          clearPreview();
+        }
+      } catch (error) {
+        banner(String(error && error.message ? error.message : error), "error");
+      }
+    }
+
+    function clearPreview() {
+      $("quote-list").innerHTML = "";
+      $("preview-panel").className = "preview hidden";
+      $("summary-counts").textContent = "";
+      $("generate").disabled = true;
+    }
+
+    function renderPreview() {
+      var preview = state.preview;
+      $("summary-counts").textContent =
+        preview.summaries.length +
+        " quote(s) · " +
+        preview.ready +
+        " ready · " +
+        preview.blocked +
+        " blocked · " +
+        preview.warnings +
+        " warning(s)";
+      var list = $("quote-list");
+      list.innerHTML = "";
+      preview.summaries.forEach(function (summary, index) {
+        var li = document.createElement("li");
+        var head = document.createElement("div");
+        head.className = "quote-head";
+        var id = document.createElement("span");
+        id.className = "quote-id";
+        id.textContent = summary.quoteId + " · " + summary.customer;
+        var badge = document.createElement("span");
+        badge.className = "badge " + summary.status;
+        badge.textContent = summary.status;
+        head.appendChild(id);
+        head.appendChild(badge);
+        li.appendChild(head);
+        var meta = document.createElement("div");
+        meta.className = "muted small";
+        meta.textContent = summary.itemCount + " item(s) · " + summary.subtotal;
+        li.appendChild(meta);
+        (summary.errors || []).slice(0, 4).forEach(function (entry) {
+          var issue = document.createElement("div");
+          issue.className = "small";
+          issue.style.color = "var(--error)";
+          issue.textContent = "• " + entry.message;
+          li.appendChild(issue);
+        });
+        (summary.warnings || []).slice(0, 3).forEach(function (entry) {
+          var issue = document.createElement("div");
+          issue.className = "small";
+          issue.style.color = "var(--warn)";
+          issue.textContent = "• " + entry.message;
+          li.appendChild(issue);
+        });
+        li.addEventListener("click", function () {
+          showRenderModel(index);
+        });
+        list.appendChild(li);
+      });
+
+      var readyIndexes = [];
+      preview.summaries.forEach(function (summary, index) {
+        if (summary.status === "ready") readyIndexes.push(index);
+      });
+      if (readyIndexes.length > 0) showRenderModel(readyIndexes[0]);
+      else $("preview-panel").className = "preview hidden";
+
+      var hasReady = preview.ready > 0;
+      var closed = (state.entitlement && state.entitlement.plan === "free" && state.entitlement.freeUsed >= FREE_ALLOWANCE);
+      $("generate").disabled = !hasReady || closed;
+    }
+
+    function showRenderModel(index) {
+      var model = state.preview && state.preview.renderModels ? state.preview.renderModels[index] : null;
+      if (!model) {
+        $("preview-panel").className = "preview hidden";
+        return;
+      }
+      var rows = model.items
+        .map(function (item) {
+          return (
+            "<tr><td>" +
+            escapeHtml(item.index) +
+            "</td><td>" +
+            escapeHtml(item.name) +
+            (item.itemCode ? "<br><span class='muted small'>" + escapeHtml(item.itemCode) + "</span>" : "") +
+            "</td><td class='right'>" +
+            escapeHtml(item.quantity) +
+            "</td><td class='right'>" +
+            escapeHtml(item.unitPrice) +
+            "</td><td class='right'>" +
+            escapeHtml(item.amount) +
+            "</td></tr>"
+          );
+        })
+        .join("");
+      var totals = model.totals
+        .map(function (total) {
+          return (
+            "<tr><td colspan='4' class='total right'>" +
+            escapeHtml(total.label) +
+            "</td><td class='total right'>" +
+            escapeHtml(total.value) +
+            "</td></tr>"
+          );
+        })
+        .join("");
+      $("preview-panel").innerHTML =
+        "<div class='muted small'>Preview · " +
+        escapeHtml(model.quoteRef) +
+        " · " +
+        escapeHtml(model.customer) +
+        " · " +
+        escapeHtml(model.pageSize) +
+        "</div>" +
+        "<div class='small'>" +
+        model.meta
+          .map(function (field) {
+            return escapeHtml(field.label) + ": " + escapeHtml(field.value);
+          })
+          .join(" · ") +
+        "</div>" +
+        "<table><thead><tr><th>" +
+        escapeHtml(model.columns.index) +
+        "</th><th>" +
+        escapeHtml(model.columns.item) +
+        "</th><th class='right'>" +
+        escapeHtml(model.columns.quantity) +
+        "</th><th class='right'>" +
+        escapeHtml(model.columns.unitPrice) +
+        "</th><th class='right'>" +
+        escapeHtml(model.columns.amount) +
+        "</th></tr></thead><tbody>" +
+        rows +
+        totals +
+        "</tbody></table>" +
+        (model.terms ? "<p class='small'><strong>Terms:</strong> " + escapeHtml(model.terms) + "</p>" : "") +
+        "<p class='muted small'>" +
+        escapeHtml(model.footerNote) +
+        "</p>";
+      $("preview-panel").className = "preview";
+    }
+
+    function renderProgress(data) {
+      $("progress").className = "progress";
+      var pct = data.total === 0 ? 100 : Math.round((data.done / data.total) * 100);
+      $("progress-bar").style.width = pct + "%";
+      $("progress-text").textContent = data.done + " / " + data.total + " quotes processed (" + data.created + " created, " + data.existing + " reused, " + data.failed + " failed)";
+      renderResults(data.results);
+      if (data.allowance && data.allowance.reason === "free_allowance_exhausted") {
+        banner("Free allowance reached. " + data.allowance.blockedCount + " quote(s) were not generated.", "warn");
+      }
+    }
+
+    function renderResults(results) {
+      var list = $("result-list");
+      list.innerHTML = "";
+      (results || []).forEach(function (result) {
+        var li = document.createElement("li");
+        var head = document.createElement("div");
+        head.className = "quote-head";
+        var id = document.createElement("span");
+        id.className = "quote-id";
+        id.textContent = result.quoteId;
+        var badge = document.createElement("span");
+        badge.className = "badge " + (result.status === "failed" ? "blocked" : "ready");
+        badge.textContent = result.status;
+        head.appendChild(id);
+        head.appendChild(badge);
+        li.appendChild(head);
+        if (result.fileUrl) {
+          var link = document.createElement("a");
+          link.href = result.fileUrl;
+          link.target = "_blank";
+          link.className = "link small";
+          link.textContent = "Open PDF";
+          li.appendChild(link);
+        }
+        if (result.message) {
+          var msg = document.createElement("div");
+          msg.className = "small muted";
+          msg.textContent = result.message;
+          li.appendChild(msg);
+        }
+        list.appendChild(li);
+      });
+    }
+
+    async function generate() {
+      if (!state.preview || state.generating) return;
+      state.generating = true;
+      $("generate").disabled = true;
+      $("result-list").innerHTML = "";
+      hideBanner();
+      try {
+        var saved = await saveSettings(false);
+        if (!saved) {
+          state.generating = false;
+          $("generate").disabled = false;
+          return;
+        }
+        var res = await run("apiStartGeneration", { fingerprint: state.preview.fingerprint });
+        while (true) {
+          if (!res.ok) {
+            banner(errorText(res), "error");
+            if (res.error.code === "source_changed") {
+              state.preview = null;
+              clearPreview();
+            }
+            break;
+          }
+          renderProgress(res.data);
+          if (res.data.status !== "running" || res.data.remainingToGenerate <= 0) {
+            banner(
+              res.data.failed > 0
+                ? "Finished with " + res.data.failed + " failure(s). See results below."
+                : "Generation complete.",
+              res.data.failed > 0 ? "warn" : "ok"
+            );
+            break;
+          }
+          res = await run("apiContinueGeneration");
+        }
+        var refreshed = await run("apiGetInitialState");
+        if (refreshed.ok) {
+          state.entitlement = refreshed.data.entitlement;
+          state.outputFolders = refreshed.data.outputFolders || [];
+          renderAllowance();
+          renderOutputFolders(state.outputFolders, refreshed.data.settings.outputFolderId);
+        }
+        await scan();
+      } catch (error) {
+        banner(String(error && error.message ? error.message : error), "error");
+      } finally {
+        state.generating = false;
+        $("generate").disabled = false;
+      }
+    }
+
+    function wireLogoUpload() {
+      $("logo-file").addEventListener("change", function (event) {
+        var file = event.target.files && event.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = async function () {
+          var result = String(reader.result);
+          var base64 = result.indexOf(",") >= 0 ? result.split(",")[1] : result;
+          var res = await run("apiSaveLogo", {
+            base64: base64,
+            mimeType: file.type,
+            fileName: file.name,
+          });
+          if (res.ok) {
+            state.settings.business.logoUrl = res.data.logoId;
+            $("logo-status").textContent = "Logo saved.";
+          } else {
+            $("logo-status").textContent = res.error.message;
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function init() {
+      $("refresh").addEventListener("click", function () {
+        scan();
+      });
+      $("save-settings").addEventListener("click", function () {
+        saveSettings(true);
+      });
+      $("preview").addEventListener("click", async function () {
+        var saved = await saveSettings(false);
+        if (saved) await scan();
+      });
+      $("generate").addEventListener("click", generate);
+      $("new-folder").addEventListener("click", async function () {
+        var res = await run("apiCreateOutputFolder");
+        if (!res.ok) {
+          banner(errorText(res), "error");
+          return;
+        }
+        state.settings = res.data.settings;
+        state.outputFolders = (state.outputFolders || []).concat([res.data.folder]);
+        renderOutputFolders(state.outputFolders, res.data.settings.outputFolderId);
+        banner("Output folder created: " + res.data.folder.name, "ok");
+      });
+      wireLogoUpload();
+
+      run("apiGetInitialState")
+        .then(function (res) {
+          if (!res.ok) {
+            banner(errorText(res), "error");
+            return;
+          }
+          applyInitial(res.data);
+          return scan();
+        })
+        .catch(function (error) {
+          banner(String(error && error.message ? error.message : error), "error");
+        });
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", init);
+    } else {
+      init();
+    }
+  })();
+</script>
